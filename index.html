@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>To</title>
+    <title>To 林子琪</title>
     <style>
         /* 全局样式 - 手机优化 */
         body { 
@@ -140,6 +140,35 @@
             padding: 0 20px;
         }
 
+        /* 音乐控制按钮 */
+        #music-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        #music-control:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: scale(1.1);
+        }
+
+        #music-control i {
+            font-size: 24px;
+            color: #d4af37;
+        }
+
         /* 手机优化 */
         @media (max-width: 768px) {
             h1 { 
@@ -160,6 +189,17 @@
             #ui-layer {
                 padding-top: 10vh;
             }
+            
+            #music-control {
+                top: 15px;
+                right: 15px;
+                width: 45px;
+                height: 45px;
+            }
+            
+            #music-control i {
+                font-size: 20px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -176,9 +216,22 @@
             #ui-layer {
                 padding-top: 12vh;
             }
+            
+            #music-control {
+                top: 10px;
+                right: 10px;
+                width: 40px;
+                height: 40px;
+            }
+            
+            #music-control i {
+                font-size: 18px;
+            }
         }
 
     </style>
+    <!-- 引入Font Awesome图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');</style>
     
     <script type="importmap">
@@ -198,6 +251,11 @@
         <div class="loader-text">加载圣诞魔法...</div>
     </div>
 
+    <!-- 音乐控制按钮 -->
+    <div id="music-control" onclick="toggleMusic()">
+        <i id="music-icon" class="fas fa-volume-up"></i>
+    </div>
+
     <!-- 主场景 -->
     <div id="canvas-container"></div>
     <canvas id="fireworks-canvas"></canvas>
@@ -214,6 +272,14 @@
         点击屏幕变换形态 • 点击照片放大 • 再次点击返回
     </div>
 
+    <!-- 隐藏的音频元素 -->
+    <audio id="bg-music" loop preload="auto" style="display: none;">
+        <source src="./music/christmas.mp3" type="audio/mpeg">
+        <source src="./music/christmas.ogg" type="audio/ogg">
+        <source src="./music/christmas.wav" type="audio/wav">
+        您的浏览器不支持音频播放
+    </audio>
+
     <script>
         // --- 配置参数 ---
         const CONFIG = {
@@ -227,11 +293,6 @@
             
             // 本地照片路径 - 可以在这里添加本地图片路径
             localPhotos: [
-                // 示例：添加本地图片（需要将图片放在同一目录或指定路径）
-                // {src: "images/photo1.jpg", aspect: 4/3},
-                // {src: "images/photo2.jpg", aspect: 16/9},
-                // 如果没有本地图片，可以使用默认的圣诞主题图片
-                // 这里使用一个在线圣诞图片作为示例，实际使用时可以替换为本地路径
                 {src: "./images/1.jpeg", aspect: 4/3},
                 {src: "./images/2.jpeg", aspect: 4/3},
                 {src: "./images/3.jpeg", aspect: 16/9},
@@ -242,15 +303,27 @@
                 {src: "./images/4.jpeg", aspect: 16/9}
             ],
             
-            // 是否自动添加示例照片（如果没有本地照片）
-            useDefaultPhotos: true
+            // 背景音乐配置
+            music: {
+                enabled: true, // 是否启用背景音乐
+                volume: 0.8,   // 音量 (0.0 - 1.0)
+                file: "./music/1.mp3" // 音乐文件路径
+            }
         };
+
+        // 音频播放器对象
+        let audioPlayer = null;
+        let isMusicPlaying = false;
+        let isUserInteraction = false;
 
         // --- 页面加载时直接初始化 ---
         window.onload = () => {
             // 设置祝福语
             document.getElementById('to-line').innerText = `To: ${CONFIG.greeting.to}`;
             document.getElementById('wish-line').innerText = CONFIG.greeting.wish;
+            
+            // 初始化音频
+            initAudio();
             
             // 启动3D引擎
             if (window.startThreeEngine) {
@@ -275,6 +348,133 @@
             }
         };
 
+        // 初始化音频
+        function initAudio() {
+            if (!CONFIG.music.enabled) {
+                document.getElementById('music-control').style.display = 'none';
+                return;
+            }
+            
+            audioPlayer = document.getElementById('bg-music');
+            audioPlayer.volume = CONFIG.music.volume;
+            
+            // 设置音频源
+            const source = audioPlayer.querySelector('source');
+            if (source) {
+                source.src = CONFIG.music.file;
+                audioPlayer.load();
+            }
+            
+            // 监听音频事件
+            audioPlayer.addEventListener('canplaythrough', () => {
+                console.log('音频可以播放');
+            });
+            
+            audioPlayer.addEventListener('error', (e) => {
+                console.error('音频加载错误:', e);
+                document.getElementById('music-control').style.display = 'none';
+            });
+            
+            audioPlayer.addEventListener('play', () => {
+                isMusicPlaying = true;
+                updateMusicIcon();
+            });
+            
+            audioPlayer.addEventListener('pause', () => {
+                isMusicPlaying = false;
+                updateMusicIcon();
+            });
+        }
+
+        // 播放音乐（处理跨平台自动播放策略）
+        function playMusic() {
+            if (!audioPlayer || !CONFIG.music.enabled) return;
+            
+            // 如果已经在播放，不做任何操作
+            if (!audioPlayer.paused) return;
+            
+            const playPromise = audioPlayer.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    // 播放成功
+                    isMusicPlaying = true;
+                    updateMusicIcon();
+                }).catch(error => {
+                    // 播放失败，通常是浏览器的自动播放策略阻止
+                    console.log('自动播放被阻止，等待用户交互');
+                    
+                    // 显示提示，让用户知道需要点击才能播放音乐
+                    const hint = document.getElementById('interaction-hint');
+                    if (hint) {
+                        hint.innerHTML = '点击屏幕播放音乐并开始交互';
+                        hint.style.color = '#d4af37';
+                    }
+                    
+                    // 等待用户第一次交互
+                    if (!isUserInteraction) {
+                        const enableAudioOnInteraction = () => {
+                            audioPlayer.play().then(() => {
+                                isMusicPlaying = true;
+                                updateMusicIcon();
+                                if (hint) {
+                                    hint.innerHTML = '点击屏幕变换形态 • 点击照片放大 • 再次点击返回';
+                                    hint.style.color = 'rgba(255, 255, 255, 0.6)';
+                                }
+                            }).catch(e => {
+                                console.log('用户交互后播放仍然失败:', e);
+                            });
+                            
+                            // 移除事件监听器
+                            document.removeEventListener('click', enableAudioOnInteraction);
+                            document.removeEventListener('touchstart', enableAudioOnInteraction);
+                            isUserInteraction = true;
+                        };
+                        
+                        document.addEventListener('click', enableAudioOnInteraction);
+                        document.addEventListener('touchstart', enableAudioOnInteraction);
+                    }
+                });
+            }
+        }
+
+        // 暂停音乐
+        function pauseMusic() {
+            if (audioPlayer && !audioPlayer.paused) {
+                audioPlayer.pause();
+                isMusicPlaying = false;
+                updateMusicIcon();
+            }
+        }
+
+        // 切换音乐播放状态
+        function toggleMusic() {
+            if (isMusicPlaying) {
+                pauseMusic();
+            } else {
+                playMusic();
+            }
+        }
+
+        // 更新音乐图标
+        function updateMusicIcon() {
+            const icon = document.getElementById('music-icon');
+            if (icon) {
+                if (isMusicPlaying) {
+                    icon.className = 'fas fa-volume-up';
+                } else {
+                    icon.className = 'fas fa-volume-mute';
+                }
+            }
+        }
+
+        // 调整音量
+        function setVolume(volume) {
+            if (audioPlayer) {
+                audioPlayer.volume = Math.max(0, Math.min(1, volume));
+            }
+        }
+
         // 防止手机端双击缩放
         let lastTouchEnd = 0;
         document.addEventListener('touchend', function (event) {
@@ -295,6 +495,7 @@
         console.log("如需修改祝福语，请在代码中修改CONFIG.greeting对象：");
         console.log("1. 修改to字段更改接收者名称");
         console.log("2. 修改wish字段更改祝福内容");
+        console.log("3. 音乐文件应放置在 /music/christmas.mp3");
     </script>
 
     <script type="module">
@@ -704,10 +905,14 @@
             });
         };
 
-        // 启用交互
+        // 启用交互 - 修改为同时尝试播放音乐
         window.activateInteraction = function() {
             setTimeout(() => {
                 STATE.interactionEnabled = true;
+                // 尝试播放音乐
+                if (window.playMusic) {
+                    window.playMusic();
+                }
             }, 1000);
         };
 
